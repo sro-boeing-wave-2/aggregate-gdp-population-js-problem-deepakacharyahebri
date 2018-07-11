@@ -19,8 +19,8 @@ const getCountryContinentMapping = (filePath) => {
 };
 const getCountryPopulationGdpMapping = (filePath, countryContinentMap) => {
   const mapCountryPopulationGdp = new Map();
-  const csvContents = fs.readFileSync(filePath, 'utf8');
-  const splitString = csvContents.split('\n');
+  const csvContent = fs.readFileSync(filePath, 'utf8');
+  const splitString = csvContent.split('\n');
   let splitByComma;
   let country;
   let population;
