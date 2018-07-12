@@ -55,14 +55,14 @@ const aggregate = (filePath) => {
   const countryContinentMap = getCountryContinentMapping('./cc-mapping.txt');
   const mapCountryPopulationGdp = getCountryPopulationGdpMapping(filePath, countryContinentMap);
   mapCountryPopulationGdp.forEach(aggregatePopulationGdp);
-  const toJasonFormat = {};
+  const jasonFormatString = {};
   gdpMap.forEach((value, key) => {
-    toJasonFormat[key] = {
+    jasonFormatString[key] = {
       GDP_2012: value,
       POPULATION_2012: popMap.get(key),
     };
   });
-  fs.writeFileSync(outputfile, JSON.stringify(toJasonFormat));
+  fs.writeFileSync(outputfile, JSON.stringify(jasonFormatString));
 };
 
 module.exports = aggregate;
