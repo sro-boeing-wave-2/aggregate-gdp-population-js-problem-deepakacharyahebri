@@ -4,76 +4,68 @@
  */
 const fs = require('fs');
 
-const aggregate = (filePath) => {
-  const getCountryContinentMapping = fileObj => new Promise((resolve, reject) => {
-    fs.readFile(fileObj, 'utf8', (err, fileContents) => {
-      const splitString = fileContents.split('\n');
-      let splitByComma;
-      const countryContinentMap = new Map();
-      for (let i = 0; i < splitString.length; i += 1) {
-        splitByComma = splitString[i].split(',');
-        countryContinentMap.set(splitByComma[0], splitByComma[1]);
-      }
-      resolve(countryContinentMap);
-      if (err) reject(err);
-    });
+const readFileAsync = path => new Promise((resolve, reject) => {
+  fs.readFile(path, 'utf8', (err, data) => {
+    if (err) reject(err);
+    else resolve(data);
   });
-  getCountryContinentMapping('./cc-mapping.txt').then((countryContinentMap) => {
-    const getCPGdpMapping = () => new Promise((resolve, reject) => {
-      fs.readFile(filePath, 'utf8', (err, csvContent) => {
-        const mapCountryPopulationGdp = new Map();
-        const splitString = csvContent.split('\n');
-        let splitByComma;
-        let country;
-        let population;
-        let gdp;
-        let continent;
-        for (let ind = 1; ind < splitString.length - 1; ind += 1) {
-          splitByComma = splitString[ind].split(',');
-          if (splitByComma[0].slice(1, -1) !== 'European Union') {
-            country = splitByComma[0].slice(1, -1);
-            population = splitByComma[4].slice(1, -1);
-            gdp = splitByComma[7].slice(1, -1);
-            continent = countryContinentMap.get(country);
-            mapCountryPopulationGdp.set(country, [population, gdp, continent]);
-          }
-        }
-        resolve(mapCountryPopulationGdp);
-        if (err) reject(err);
-      });
-    });
-    getCPGdpMapping().then((mapCountryPopulationGdp) => {
-      const gdpMap = new Map();
-      const popMap = new Map();
-      mapCountryPopulationGdp.forEach((value) => {
-        if (popMap.has(value[2])) {
-          popMap.set(value[2], parseFloat(popMap.get(value[2])) + parseFloat(value[0]));
-        } else {
-          popMap.set(value[2], parseFloat(value[0]));
-        }
-        if (gdpMap.has(value[2])) {
-          gdpMap.set(value[2], parseFloat(gdpMap.get(value[2])) + parseFloat(value[1]));
-        } else {
-          gdpMap.set(value[2], parseFloat(value[1]));
-        }
-      });
-      const jsonFormatString = {};
-      gdpMap.forEach((value, key) => {
-        jsonFormatString[key] = {
-          GDP_2012: value,
-          POPULATION_2012: popMap.get(key),
-        };
-      });
-      const writeFileAsync = () => new Promise((resolve, reject) => {
-        const outputfile = './output/output.json';
-        fs.writeFile(outputfile, JSON.stringify(jsonFormatString, 2, 2), (err) => {
-          if (err) reject(err);
-          else resolve();
-        });
-      });
-      writeFileAsync();
-    });
+});
+const writeFileAsync = (path, data) => new Promise((resolve, reject) => {
+  fs.writeFile(path, data, (err) => {
+    if (!err) resolve(data);
+    else reject(err);
   });
+});
+const getCountryContinentMap = (fileContents) => {
+  const countryContinentMap = new Map();
+  const getRows = fileContents.split('\n');
+  let splitByComma;
+  for (let i = 0; i < getRows.length - 1; i += 1) {
+    splitByComma = getRows[i].split(',');
+    countryContinentMap.set(splitByComma[0], splitByComma[1]);
+  }
+  return countryContinentMap;
 };
+const getCSVContentsAsObjects = (fileContents, countryContinentMap) => {
+  const rowOfContents = fileContents.replace(/["']+/g, '').split('\n');
+  const headers = rowOfContents[0].split(',');
+  const objectArray = [];
+  let obj;
+  for (let i = 1; i < rowOfContents.length - 2; i += 1) {
+    obj = {};
+    const splitByComma = rowOfContents[i].split(',');
+    for (let j = 0; j < headers.length; j += 1) {
+      if (j === 0) obj[headers[j]] = splitByComma[j];
+      else obj[headers[j]] = parseFloat(splitByComma[j]);
+    }
+    obj.Continent = countryContinentMap.get(splitByComma[0]);
+    objectArray.push(obj);
+  }
+  return objectArray;
+};
+const aggregate = filePath => new Promise((resolve, reject) => {
+  Promise.all([readFileAsync(filePath), readFileAsync('./cc-mapping.txt')]).then((values) => {
+    const countryMapData = values[1];
+    const csvData = values[0];
+    const countryContinentMap = getCountryContinentMap(countryMapData);
+    const objectArray = getCSVContentsAsObjects(csvData, countryContinentMap);
+    const toJSONObject = {};
+    objectArray.forEach((obj) => {
+      try {
+        toJSONObject[obj.Continent].GDP_2012 += obj['GDP Billions (US Dollar) - 2012'];
+        toJSONObject[obj.Continent].POPULATION_2012 += obj['Population (Millions) - 2012'];
+      } catch (e) {
+        toJSONObject[obj.Continent] = {
+          GDP_2012: obj['GDP Billions (US Dollar) - 2012'],
+          POPULATION_2012: obj['Population (Millions) - 2012'],
+        };
+      }
+    });
+    const dataToBeWrittenToFile = JSON.stringify(toJSONObject, 2, 2);
+    writeFileAsync('./output/output.json', dataToBeWrittenToFile).then((data) => {
+      resolve(data);
+    }, err => reject(err));
+  }, () => {});
+});
 
 module.exports = aggregate;
