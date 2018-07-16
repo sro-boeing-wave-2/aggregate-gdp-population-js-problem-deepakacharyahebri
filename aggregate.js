@@ -31,15 +31,17 @@ const getCSVContentsAsObjects = (fileContents, countryContinentMap) => {
   const headers = rowOfContents[0].split(',');
   const objectArray = [];
   let obj;
-  for (let i = 1; i < rowOfContents.length - 2; i += 1) {
+  for (let i = 1; i < rowOfContents.length - 1; i += 1) {
     obj = {};
     const splitByComma = rowOfContents[i].split(',');
-    for (let j = 0; j < headers.length; j += 1) {
-      if (j === 0) obj[headers[j]] = splitByComma[j];
-      else obj[headers[j]] = parseFloat(splitByComma[j]);
+    if (splitByComma[0] !== 'European Union') {
+      for (let j = 0; j < headers.length; j += 1) {
+        if (j === 0) obj[headers[j]] = splitByComma[j];
+        else obj[headers[j]] = parseFloat(splitByComma[j]);
+      }
+      obj.Continent = countryContinentMap.get(splitByComma[0]);
+      objectArray.push(obj);
     }
-    obj.Continent = countryContinentMap.get(splitByComma[0]);
-    objectArray.push(obj);
   }
   return objectArray;
 };
@@ -65,7 +67,7 @@ const aggregate = filePath => new Promise((resolve, reject) => {
     writeFileAsync('./output/output.json', dataToBeWrittenToFile).then((data) => {
       resolve(data);
     }, err => reject(err));
-  }, () => {});
+  }, () => { });
 });
 
 module.exports = aggregate;
